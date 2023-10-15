@@ -1,6 +1,7 @@
-name: build node smoke-tests from source
+name: Build Node Smoke-Tests from Source
 
-on: workflow_dispatch
+on:
+  workflow_dispatch
 
 jobs:
   node:
@@ -24,12 +25,13 @@ jobs:
           - name: VanillajsMonolithApp
             folder: vanillajs/monolith
             executable: app
-          - name: quasar-app
+          - name: QuasarApp
             folder: vue/quasar-app
             executable: app
-          - name: svelte-app
+          - name: SvelteApp
             folder: svelte/svelte-app
             executable: app
+
         include:
           - platform: ubuntu-latest
             CARGO_HOME: ~/.cargo
@@ -45,59 +47,72 @@ jobs:
             ext: _0.1.0_x64.msi
 
     steps:
-      - name: checkout tauri
+      - name: Checkout Tauri repository
         uses: actions/checkout@v2
         with:
           repository: tauri-apps/tauri
           ref: dev
-      - name: checkout smoke-tests
+
+      - name: Checkout Smoke-Tests repository
         uses: actions/checkout@v2
         with:
           path: smoke-tests
-      - name: install rust stable
+
+      - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
-      - name: install webkit2gtk (ubuntu only)
+
+      - name: Install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0
-      - name: cache rust bin
+
+      - name: Cache Rust binaries
         uses: actions/cache@v1
         with:
           path: ${{ format('{0}/bin/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-bin-${{ hashFiles('**/Cargo.toml') }}-
-      - name: cache rust registry/index
+
+      - name: Cache Rust registry/index
         uses: actions/cache@v1
         with:
           path: ${{ format('{0}/registry/index/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-reg-index-${{ hashFiles('**/Cargo.toml') }}-
-      - name: cache rust registry/cache
+
+      - name: Cache Rust registry/cache
         uses: actions/cache@v1
         with:
           path: ${{ format('{0}/registry/cache/', matrix.CARGO_HOME) }}
           key: ${{ runner.OS }}-build-reg-cache-${{ hashFiles('**/Cargo.toml') }}-
-      - name: install cli deps via yarn
+
+      - name: Install CLI dependencies via yarn
         working-directory: ./tooling/cli.js
         run: yarn
-      - name: build cli
+
+      - name: Build CLI
         working-directory: ./tooling/cli.js
         run: yarn build
-      - name: cache node modules
+
+      - name: Cache Node modules
         uses: actions/cache@v1
         with:
           path: ${{ format('smoke-tests/node/{0}/node_modules', matrix.test.folder) }}
           key: ${{ runner.OS }}-build-${{ hashFiles(format('smoke-tests/node/{0}/yarn.lock', matrix.test.folder)) }}
           restore-keys: ${{ runner.OS }}-build-${{ env.cache-name }}-
-      - name: install via yarn
+
+      - name: Install via yarn
         working-directory: ./smoke-tests/node/${{ matrix.test.folder }}
         run: yarn
-      - name: yarn tauri build
+
+      - name: Yarn Tauri build
         working-directory: ./smoke-tests/node/${{ matrix.test.folder }}
         run: yarn tauri:build
-      - uses: actions/upload-artifact@v1
+
+      - name: Upload artifacts on success
+        uses: actions/upload-artifact@v2
         if: success()
         with:
           name: ${{ matrix.test.name }}(${{ matrix.platform }})
